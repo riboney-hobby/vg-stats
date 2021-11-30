@@ -1,0 +1,31 @@
+{
+  "name": "vg-stats-api",
+  "version": "1.0.0",
+  "description": "API for video game data",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/index.js",
+    "lint": "eslint **/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/riboney/vg-stats.git"
+  },
+  "author": "ribone",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/riboney/vg-stats/issues"
+  },
+  "homepage": "https://github.com/riboney/vg-stats#readme",
+  "dependencies": {
+    "dotenv": "^10.0.0",
+    "express": "^4.17.1",
+    "morgan": "^1.10.0",
+    "mysql": "^2.18.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.3.0",
+    "prettier": "^2.5.0"
+  }
+}
