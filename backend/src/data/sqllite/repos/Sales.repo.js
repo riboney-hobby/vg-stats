@@ -1,11 +1,19 @@
+// TODO: temporary for testing, refactor into proper tables later
+
+// separate, explicit functions
 const {
     create,
     findByID,
     findAll,
     updateByID,
     deleteByID,
-    createTable
-} = require('./sqlLiteDAO')
+    createTable,
+} = require('../sqlite.dao')
+
+// vs
+
+// one namespace for all the functions
+const dao = require('../sqlite.dao')
 
 const tableName = 'Sales'
 
@@ -16,15 +24,21 @@ const initTable = () => {
         rank INTEGER NOT NULL UNIQUE,
         name TEXT NOT NULL)`;
     
-    createTable(statement).then(res => console.log('RESULT ct:', res));
+    return createTable(statement);
 }
 
 const createSale = (sale) => {
-    create(tableName, Object.keys(sale), [sale.rank, sale.name]).then(res => console.log('RESULT:', res));
+    return create(tableName, Object.keys(sale), [sale.rank, sale.name]);
 }
 
 const getAllSales = () => {
-    findAll(tableName).then(res => res.forEach(r => console.log('res: ', r)))
+    return findAll(tableName)
+}
+
+module.exports = {
+    initTable,
+    createSale,
+    getAllSales
 }
 
 // console.log('initializing table...');
