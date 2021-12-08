@@ -8,11 +8,14 @@ const sqlite3 = require('sqlite3').verbose();
  */
 function SqliteManager(configs) {
     if(!configs){
-        configs = [
-            /** filename **/ ':memory:',
-            /**     mode **/ [sqlite3.OPEN_CREATE, sqlite3.OPEN_READWRITE],
-            /** callback **/ err => {if (err) throw err}
-        ]
+        configs = {
+            filepath: ':memory:',
+            mode: [sqlite3.OPEN_CREATE, sqlite3.OPEN_READWRITE],
+            callback: function(err) { 
+                if (err) throw err;
+                console.log('Database connecting...');
+            }
+        }
     }
 
     this.filepath = configs.filepath;
@@ -46,31 +49,80 @@ function SqliteManager(configs) {
     })().getDbManager();
 }
 
+/**
+ * Connects to SQLite and provides Sqlite object
+ * 
+ * @returns {Object} Database object representing SQLite with name Database
+ */
 SqliteManager.prototype.createDatabase = function() {
-
-    // if database not created:
-    if(!this.dbManager.getDB()){
-        const db = new sqlite3.Database(...configs)
-            .on('open', () => console.log('DB connection established'));
-        this.dbManager.setDB(db)
-    }
-
-    return this.dbManager.getDB()
+    return new Promise( (resolve, reject) => {
+        // if database not created:
+        if(!this.dbManager.getDB()){
+            try {
+                const db = new sqlite3.Database(this.filepath, this.mode, this.connectionCallback)
+                    .on('open', () => {
+                        this.dbManager.setDB(db);
+                        console.log('Database connection established!')
+                        resolve(this.dbManager.getDB());
+                    })
+            } catch(err) {reject(err)}
+        } else resolve(this.dbManager.getDB());
+    })
 }
 
-SqliteManager.prototype.closeSqliteDb = function(){
-
-    // if database not created:
-    if(!this.dbManager.getDB()){
-        return false;
-    }
-
-    this.dbManager.getDB()
-        .close(err => {if(err) throw err})
-        .on('close', () => console.log('DB connection is closed'));
-    
-    return true;
+/**
+ * Closes connection to SQLite database
+ * 
+ * @returns {boolean} True for successful database closure; False for no datbase found to close
+ */
+SqliteManager.prototype.closeDatabase = function(){
+    return new Promise((resolve, reject) => {
+        // if database not created:
+        if(!this.dbManager.getDB()){
+            console.log('No database connection to close!')
+            resolve(false);
+        } else {
+            this.dbManager.getDB()
+                .close(err => {if(err) reject(err)})
+                .on('close', () => {
+                    console.log('Database connection is closed!');
+                    this.dbManager.setDB(undefined)
+                    resolve(true);
+                });
+        }        
+    })
 }
-
 
 module.exports = SqliteManager;
+
+
+// Represents the Non-promises, synchronous version of the code
+
+// SqliteManager.prototype.createDatabase = function() {
+
+//     // if database not created:
+//     if(!this.dbManager.getDB()){
+//         const db = new sqlite3.Database(this.filepath, this.mode, this.connectionCallback)
+//             .on('open', () => {
+//                 this.dbManager.setDB(db)
+//                 console.log('Database connection established!')
+//                 return this.dbManager.getDB()
+//             });
+//     } else return this.dbManager.getDB();
+// }
+
+// SqliteManager.prototype.closeSqliteDb = function(){
+
+//     // if database not created:
+//     if(!this.dbManager.getDB()){
+//         console.log('No database connection to close!')
+//         return false;
+//     } else {
+//         this.dbManager.getDB()
+//             .close(err => {if(err) throw err})
+//             .on('close', () => {
+//                 console.log('Database connection is closed');
+//                 return true;
+//             });
+//     }
+// }
