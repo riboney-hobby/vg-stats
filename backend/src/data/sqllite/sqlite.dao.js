@@ -1,3 +1,5 @@
+const SqliteManager = require('./sqlite.manager')
+
 /**
  * Represents the actions that can be done with SQLite database
  * 
@@ -7,6 +9,43 @@
 function SqliteDAO(dbInstance) {
     this.dbInstance = dbInstance;
 }
+
+
+/**
+ * For any general query that is expected returns some result set
+ * 
+ * @param {string} sqlQuery - Non parameterized SQL query
+ * @returns 
+ */
+ SqliteDAO.prototype.query = function(sqlQuery) {
+    return new Promise((resolve, reject) => {
+        if(!this.dbInstance) reject(new Error('Database is not connected!'));
+
+        this.dbInstance.all(sqlQuery, params=[], function(err, rows){
+            if(err) reject(err)
+            else resolve(rows)
+        })
+    })
+}
+
+/**
+ * Runs any queries like INSERTS, UPDATES, etc that doesn't return the resultset
+ * 
+ * @param {string} query - SQL query that changes some aspect of the table
+ * @param {*} values - Values for the parameters in updateQuery
+ * @returns {Promise} Promise contains the ID of the last updated row and number of changes to the table
+ */
+ SqliteDAO.prototype.run = function (query) {
+    return new Promise((resolve, reject) => {
+        if(!this.dbInstance) reject(new Error('Database is not connected!'));
+
+        this.dbInstance.run(query, params=[], function(err){
+            if(err) reject(err)
+            else resolve({id: this.lastID, changes: this.changes})
+        })
+    })
+}
+
 
 /**
  * Query to insert rows
@@ -62,13 +101,13 @@ function SqliteDAO(dbInstance) {
  * 
  * @returns {Promise} Promise that contains an object containing the values for the first row found
  */
- SqliteDAO.prototype.queryByID = function(tableName, id){
-    const params = [tableName, id];
+ SqliteDAO.prototype.retrieveByID = function(tableName, id){
+    const params = [id];
 
     return new Promise((resolve, reject) => {
         if(!this.dbInstance) reject(new Error('Database is not connected!'));
 
-        this.dbInstance.get("SELECT * FROM ? WHERE ID = ?", params, function(err, row){
+        this.dbInstance.get(`SELECT * FROM ${tableName} WHERE id = ?`, params, function(err, row){
             if(err) reject(err)
             else resolve(row)
         })
@@ -81,31 +120,13 @@ function SqliteDAO(dbInstance) {
  * @param {string} tableName - name of the table to query
  * @returns {Promise} Promise that contains array of all rows in table
  */
- SqliteDAO.prototype.queryAll = function(tableName) {
+ SqliteDAO.prototype.retrieveAll = function(tableName) {
     return new Promise((resolve, reject) => {
         if(!this.dbInstance) reject(new Error('Database is not connected!'));
 
         this.dbInstance.all(`SELECT * FROM ${tableName}`, params=[], function(err, rows){
             if(err) reject(err)
             else resolve(rows)
-        })
-    })
-}
-
-/**
- * Updates record according to the updateQuery
- * 
- * @param {string} updateQuery - Parameterized SQL UPDATE statement; should include `WHERE ID = ?`
- * @param {*} values - Values for the parameters in updateQuery
- * @returns {Promise} Promise contains the ID of the last updated row and number of changes to the table
- */
- SqliteDAO.prototype.update = function (updateQuery, values) {
-    return new Promise((resolve, reject) => {
-        if(!this.dbInstance) reject(new Error('Database is not connected!'));
-
-        this.dbInstance.run(updateQuery, values, function(err){
-            if(err) reject(err)
-            else resolve({id: this.lastID, changes: this.changes})
         })
     })
 }
@@ -118,12 +139,12 @@ function SqliteDAO(dbInstance) {
  * @returns {Promise} Promise contains the the ID of the last deleted row and number of changes to the table
  */
  SqliteDAO.prototype.deleteByID = function(tableName, ID) {
-    const params = [tableName, ID];
+    const params = [ID];
 
     return new Promise((resolve, reject) => {
         if(!this.dbInstance) reject(new Error('Database is not connected!'));
 
-        this.dbInstance.run('DELETE FROM ? WHERE ID = ?', params, function(err){
+        this.dbInstance.run(`DELETE FROM ${tableName} WHERE ID = ?`, params, function(err){
             if(err) reject(err)
             else resolve({id: this.lastID, changes: this.changes})
         })
@@ -141,12 +162,68 @@ function SqliteDAO(dbInstance) {
 
         this.dbInstance.run(createTableStatement, [], function(err){
             if(err) reject(err)
-            console.log('in create table')
             resolve({ id: this.lastID })
         })
     })
 }
 
-
-
 module.exports = SqliteDAO;
+
+// const statement = `
+//     CREATE TABLE IF NOT EXISTS foo (
+//         id INTEGER PRIMARY KEY AUTOINCREMENT,
+//         rank INTEGER NOT NULL UNIQUE,
+//         name TEXT NOT NULL)`;
+
+
+// const stmt3 = `PRAGMA table_info(foo)`
+// const input = {
+//     tableName: 'foo',
+//     columns: ['rank', 'name'],
+//     values: ['1', 'Bob']
+// }
+// // const dbObj = new SqliteManager();
+
+// Example how to use this class
+// async function run(){
+//     try{
+//         const dbConnection = new SqliteManager();
+//         const d = await dbConnection.createDatabase();
+//         const db = new SqliteDAO(d);
+//         const sm = await db.createTable(statement);
+//         let rs = await db.insert(input.tableName, input.columns, input.values);
+//         console.log(rs);
+//         let rows = await db.retrieveAll(input.tableName);
+//         console.log(rows);
+//         let row = await db.retrieveByID(input.tableName, '1')
+//         console.log(row);
+//         dbConnection.closeDatabase();
+
+//     } catch(err){
+//         console.error(err)
+//     }
+// }
+
+// run();
+
+// Promise version, doesn't work
+// dbObj.createDatabase()
+//     .then(dbInstance => new SqliteDAO(dbInstance))
+//     .then(dao => { 
+//         const res = dao.createTable(statement)
+//         return {dao, res}
+//     })
+//     .then(({dao, res}) => {
+//         console.log(res);
+//         const results = dao.query(stmt3)
+//         return {dao, results}
+//     })
+//     .then(({dao, results}) => {
+//         console.log(results)
+//         const res = dao.insert(input.tableName, input.columns, input.values)
+//         return {dao, res}
+//     })
+//     .then(({dao, results}) => {
+//         console.log(results)
+//         dbObj.closeDatabase()
+//     })
