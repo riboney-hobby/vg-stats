@@ -1,4 +1,4 @@
-const SqliteManager = require('../sqlite.manager')
+const SqliteManager = require('../sqlite.manager');
 
 describe('Tests database creation and closure', () => {
 
