@@ -9,7 +9,7 @@ const path = require('path');
  * rootDir(); // returns /home/risbah/todo_app/backend 
  */
 function getProjectRootDir(rootDirectoryName = 'backend'){
-    const currentDirAbsFilepath = path.join('~', __dirname);
+    const currentDirAbsFilepath = path.join(__dirname);
     const isThisAlreadyInRootDir = currentDirAbsFilepath.endsWith(rootDirectoryName);
 
     return isThisAlreadyInRootDir ? 
