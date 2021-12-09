@@ -18,3 +18,14 @@ These are my notes based on this project that will be used for future reference
         "start": "node src/index.js",
         "lint": "eslint **/*.js"
     ```
+
+## SQLite
+
+- Resources
+  - [SQLite nodejs docs](https://github.com/mapbox/node-sqlite3/wiki)
+  - [Tutorial I followed](https://stackabuse.com/a-sqlite-tutorial-with-node-js/)
+
+- Install: `npm i sqlite3`
+- SQL queries all run in parallel
+  - To ensure things run one at a time, sequentially, you must promisfy or use [`db.Serialize()`](https://github.com/mapbox/node-sqlite3/wiki/Control-Flow)
+- `params` don't work for table names; you must provide the tablename manually
