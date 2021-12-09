@@ -1,4 +1,4 @@
-const fileUtils = require('../file-utills');
+const fileUtils = require('../file-utils');
 
 test('Tests getProjectRootDir()', () => {
     const result = fileUtils.getProjectRootDir();
