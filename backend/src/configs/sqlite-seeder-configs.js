@@ -32,9 +32,24 @@ const DATA_SCHEMA = {
 }
 
 
+const CREATE_GENRE_TABLE = `
+CREATE TABLE genre (
+    genre_id INTEGER PRIMARY KEY,
+    genre_name TEXT UNIQUE NOT NULL 
+)
+`
+
+const CREATE_PLATFORM_TABLE = `
+CREATE TABLE platform (    
+    platform_id INTEGER PRIMARY KEY,
+    platform_name TEXT UNIQUE NOT NULL 
+)
+`
+
 const CREATE_VIDEOGAME_TABLE = `
 CREATE TABLE videogame (
     videogame_id INTEGER PRIMARY KEY,
+    videogame_name TEXT NOT NULL,
     year TEXT NOT NULL,
     publisher_id INTEGER,
     genre_id INTEGER,
@@ -48,36 +63,25 @@ CREATE TABLE videogame (
 const CREATE_PUBLISHER_TABLE = `
 CREATE TABLE publisher (
     publisher_id INTEGER PRIMARY KEY,
-    publisher_name TEXT NOT NULL
-)
-`
-
-const CREATE_GENRE_TABLE = `
-CREATE TABLE genre (
-    genre_id INTEGER PRIMARY KEY,
-    genre_name TEXT NOT NULL
+    publisher_name TEXT UNIQUE NOT NULL
 )
 `
 
 const CREATE_VIDEOGAMESALE_TABLE = `
 CREATE TABLE videogame_sale (
-    sale_id INTEGER NOT NULL,
     videogame_id INTEGER NOT NULL,
+    platform_id INTEGER NOT NULL,
     na_sales INTEGER DEFAULT 0,
     eu_sales INTEGER DEFAULT 0,
     jp_sales INTEGER DEFAULT 0,
     other_sales INTEGER DEFAULT 0,
-    PRIMARY KEY (sale_id, videogame_id),
+    PRIMARY KEY (videogame_id, platform_id),
     FOREIGN KEY (videogame_id) REFERENCES videogame
             ON UPDATE CASCADE
             ON DELETE CASCADE
-)
-`
-
-const CREATE_PLATFORM_TABLE = `
-CREATE TABLE platform (    
-    platform_id INTEGER PRIMARY KEY,
-    platform_name TEXT NOT NULL
+    FOREIGN KEY (platform_id) REFERENCES platform
+            ON UPDATE CASCADE
+            ON DELETE CASCADE
 )
 `
 

@@ -1,39 +1,24 @@
-// X Get filepath to data source (through env variables)
-// X  - Verify file exist, if not exit
-// X Create sqlite database object
-// X  - database filename: `../res/sqlite-vg-sales.db`
-// X Create dataobject to represent CSV file table (columns are property names)
-// X push CREATE TABLE statements into database 
-// Open read stream on data source
-// Ignore first line in data source
-// Read into memory each line upto newline character
-// X Split values into array, separated by commmas 
-//   - X check if values.length = dataobject.keys.length
-//     - X false: throw error('data format not correct!')
-//     - X true: initialize dataobject with values in array
-// Generate INSERT query string with values from the dataobject
-// Write INSERT query string with DAO (use stmt for this)
-// Repeat until EOL reached
-// Execute SQL file
-
 const fs = require('fs/promises');
+const open = require('fs').createReadStream
 const events = require('events')
 const emitter = new events.EventEmitter()
 const readline = require('readline')
-// const fs = require('fs')
 const path = require('path')
 
 const configs = require('../configs/sqlite-seeder-configs')
+const {checkFileExists} = require('../utils/file-utils')
 
 function main(){
     checkFileExists(configs.DATA_FILE)
+        .then(() => configs.DB_MANAGER.createDatabase())
+        .then(db => initTables(db))
+        .then(db => processCSV(db))
+        // .then(db => showTables(db))
+        .then(db => showSingleTable(db, 'genre'))
         .then(() => {
-            return configs.DB_MANAGER.createDatabase();
+            console.log('All done!')
+            configs.DB_MANAGER.closeDatabase();
         })
-        .then(db => {
-            return initTables(db);
-        })
-        .then(() => console.log('All done!'))
         .catch(err => { 
             console.error(err.message, '\nExiting program!');
             // src: https://stackoverflow.com/a/37592669
@@ -42,9 +27,158 @@ function main(){
 }
 
 
-function checkFileExists(filePath){
-    return fs.access(filePath, fs.F_OK);
+function processCSV(db){
+    const stream = readline.createInterface({input: open(configs.DATA_FILE)})
+    let isFirstLine = true;
+    
+    return new Promise( (resolve, reject) => {
+        stream.on('line', line => {
+            if(isFirstLine) isFirstLine = false;
+            else processCSVLine(db, line)
+        })
+        stream.on('error', err => reject(err))
+        stream.on('close', () => resolve(db))
+    })
 }
+
+function processCSVLine(db, line){
+    const data = extractDataFrom(line);
+    const rawTables = processData(data);
+    const queries = generateQueries(rawTables);
+    insertData(db, queries)
+}
+
+function extractDataFrom(line){
+
+    const raw = lineSplitter(line);
+    const arr = doubleUpQuotes(raw);
+
+
+    let i = 0;
+    const dataModel = Object.assign(configs.DATA_SCHEMA);
+
+    for (let [key, value] of Object.entries(dataModel)){
+        value = arr[i];
+        dataModel[`${key}`] = value
+        i++;
+    }
+    
+    return dataModel;
+}
+
+function lineSplitter(line){
+    const numOfColumns = Object.keys(configs.DATA_SCHEMA).length;
+    let rawArr = line.split(',');
+
+    if(rawArr.length == numOfColumns) return rawArr;
+    else if(rawArr.length < numOfColumns) throw new Error('Invalid data encountered!\n');
+    else {
+        let firstDoubleQuotes = false;
+        let lastDoubleQuotes = false;
+        let arr = [...rawArr];
+
+
+        for(let i = 0; i<arr.length; i++){
+            if(arr[i].startsWith('"')) {
+                do{
+                    arr[i] = arr[i].concat('', ',' + arr[i+1]);
+                    arr.splice(i+1, 1);
+                    if(arr[i+1].endsWith('"')){
+                        arr[i] = arr[i].concat('', ',' + arr[i+1]);
+                        arr.splice(i+1, 1);
+                    }
+                } while(!arr[i].endsWith('"'))
+            
+            }
+        }
+
+        return arr;
+    }
+}
+
+function doubleUpQuotes(arr){
+    return arr.map(item => {
+        if(item.includes("'")){
+            return item.replaceAll("'", "''");
+        } else return item;
+    })
+}
+
+// const raw = lineSplitter("16502,Irotoridori no Sekai: World's End Re-Birth,PSV,2015,Action,HuneX,0,0,0.01,0,0.01");
+// console.log(raw)
+// console.log(doubleUpQuotes(raw));
+
+// console.log(lineSplitter('945,"He,y Y,ou, P,ik,ach,u!",N64,1998,"He,y Y,ou, P,ik,ach,u!",Nintendo,0.83,0.06,0.93,0,1.83'))
+
+function processData(raw){
+    return {
+        genre: {
+            tableName: 'genre',
+            genre_name: raw.genre
+        },
+        platform: {
+            tableName: 'platform',
+            platform_name: raw.platform
+        },
+        videogame: {
+            tableName: 'videogame',
+            videogame_name: raw.name,
+            year: raw.year,
+            publisher: raw.publisher,
+            genre: raw.genre
+        },
+        publisher: {
+            tableName: 'publisher',
+            publisher_name: raw.publisher
+        },
+        sale: {
+            tableName: 'videogame_sale',
+            videogame: raw.name,
+            platform_name: raw.platform,
+            naSales: raw.naSales,
+            euSales: raw.euSales,
+            jpSales: raw.jpSales,
+            otherSales: raw.otherSales
+        },
+        videogamePlatform: {
+            tableName: 'videogame_platform',
+            videogame: raw.name,
+            platform: raw.platform
+        }
+    }
+}
+
+function generateQueries(o){
+    return {
+        genreInsert : `INSERT OR IGNORE INTO ${o.genre.tableName} (genre_name) 
+        VALUES ('${o.genre.genre_name}')`,
+    
+        platformInsert : `INSERT OR IGNORE INTO ${o.platform.tableName} (platform_name)
+        VALUES ('${o.platform.platform_name}')`,
+
+        videogameInsert : `INSERT INTO ${o.videogame.tableName}
+        (videogame_name, year, publisher_id, genre_id)
+        VALUES ('${o.videogame.videogame_name}', '${o.videogame.year}',
+            (SELECT publisher_id FROM publisher WHERE publisher_name ='${o.videogame.publisher}'),
+            (SELECT genre_id FROM genre WHERE genre_name = '${o.videogame.genre}'))`,
+
+        publisherInsert: `INSERT OR IGNORE INTO ${o.publisher.tableName} (publisher_name)
+        VALUES ('${o.publisher.publisher_name}')`,
+
+        // TODO: fix this part!
+        salesInsert: `INSERT INTO ${o.sale.tableName}
+        (videogame_id, platform_id, na_sales, eu_sales, jp_sales, other_sales)
+        VALUES ((SELECT videogame_id FROM videogame WHERE videogame_name = '${o.sale.videogame}'),
+        (SELECT platform_id FROM platform WHERE )
+        ${o.sale.naSales},${o.sale.euSales},${o.sale.jpSales},${o.sale.otherSales})`,
+
+        vgPlatformInsert: `INSERT INTO ${o.videogamePlatform.tableName}
+        (videogame_id, platform_id) VALUES ((SELECT videogame_id FROM videogame WHERE videogame_name = '${o.videogamePlatform.videogame}'),
+        (SELECT platform_id FROM platform WHERE platform_name = '${o.videogamePlatform.platform}'))`
+    }
+}
+
+// Database utils
 
 function initTables(db){
     if(!db) throw new Error('Database not created!')
@@ -52,7 +186,7 @@ function initTables(db){
         destroyTables(db);
         createTables(db);
     })
-    // return configs.DB_MANAGER.closeDatabase();
+    // return 
     return db;
 }
 
@@ -70,7 +204,7 @@ function createTables(db){
     }
 }
 
-function showTables(db){
+function showCreateTableInfo(db){
     db.each("select * from sqlite_master where type='table'", [], 
         function (err, row) {
             console.log('tables created: ', row);
@@ -80,23 +214,31 @@ function showTables(db){
         });
 }
 
-function extractDataFrom(line){
-    const arr = line.split(',');
-
-    if(arr.length != Object.keys(config.DATA_SCHEMA).length) throw new Error('Invalid data encountered!');
-
-    let i = 0;
-    let dataModel = {};
-    for (let [key, value] of Object.entries(configs.DATA_SCHEMA)){
-        value = arr[i];
-        dataModel[`${key}`] = value
-        i++;
-    }
-    return dataModel;
+function showTables(db){
+    db.serialize(function(){
+        for(let i = 0; i<configs.TABLE_NAMES.length; i++){
+            db.all(`SELECT * FROM ${configs.TABLE_NAMES[i]}`, [], (err, row) => console.log('table number ', i, '\n', row))
+        }
+    })
 }
 
-function
+function showSingleTable(db, tableName){
+    db.serialize(function(){
+        db.all(`SELECT * FROM ${tableName}`, [], (err, row) => console.log(tableName, ' ', row))
+    })
+}
 
-//main();
-const line = '1,Wii Sports,Wii,2006,Sports,Nintendo,41.49,29.02,3.77,8.46,82.74'
-extractDataFrom(line);
+function insertData(db, q){
+    if(!db) throw new Error('Database not created!')
+    const sql = q.genreInsert  + ';\n' + q.platformInsert + ';\n' + q.publisherInsert 
+        + ';\n' + q.videogameInsert + ';\n' + q.salesInsert + ';\n' + q.vgPlatformInsert;
+    db.exec(sql, (err) => {
+        // return err
+        if(err) { 
+            console.log('The error: ', sql, '\n', err)
+            throw err
+        }
+    })
+}
+
+main();

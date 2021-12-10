@@ -1,4 +1,6 @@
 const path = require('path');
+const fs = require('fs/promises');
+
 
 // src: https://stackoverflow.com/a/50052194
 /**
@@ -58,6 +60,11 @@ function _lastTargetIndex(targetWord, arr){
     return index;
 }
 
+function checkFileExists(filePath){
+    return fs.access(filePath, fs.F_OK);
+}
+
 module.exports = {
     getProjectRootDir,
+    checkFileExists,
 }
