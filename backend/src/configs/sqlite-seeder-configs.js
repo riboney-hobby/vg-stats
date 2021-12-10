@@ -4,7 +4,8 @@ const sqlite3 = require('sqlite3');
 const dbManager = require('../data/sqllite/sqlite.manager');
 const projectRootPath = require('../utils/file-utils').getProjectRootDir()
 
-const DATA_FILE = path.join(projectRootPath, 'res/vgsales.csv');
+//const DATA_FILE = path.join(projectRootPath, 'res/vgsales.csv');
+const DATA_FILE = path.join(projectRootPath, 'res/test.csv');
 const SQL_FILE = path.join(projectRootPath, 'res/sqlite-init.sql');
 const DB_FILE = path.join(projectRootPath, '/res/sqlite-vg-sales.db');
 const DB_CONFIGS ={
@@ -49,8 +50,7 @@ CREATE TABLE platform (
 const CREATE_VIDEOGAME_TABLE = `
 CREATE TABLE videogame (
     videogame_id INTEGER PRIMARY KEY,
-    videogame_name TEXT NOT NULL,
-    year TEXT NOT NULL,
+    videogame_name TEXT NOT NULL UNIQUE,
     publisher_id INTEGER,
     genre_id INTEGER,
     FOREIGN KEY (publisher_id) REFERENCES publisher (publisher_id)
@@ -69,13 +69,13 @@ CREATE TABLE publisher (
 
 const CREATE_VIDEOGAMESALE_TABLE = `
 CREATE TABLE videogame_sale (
-    videogame_id INTEGER NOT NULL,
-    platform_id INTEGER NOT NULL,
+    sale_id INTEGER PRIMARY KEY,
+    videogame_id INTEGER,
+    platform_id INTEGER,
     na_sales INTEGER DEFAULT 0,
     eu_sales INTEGER DEFAULT 0,
     jp_sales INTEGER DEFAULT 0,
     other_sales INTEGER DEFAULT 0,
-    PRIMARY KEY (videogame_id, platform_id),
     FOREIGN KEY (videogame_id) REFERENCES videogame
             ON UPDATE CASCADE
             ON DELETE CASCADE
@@ -89,15 +89,14 @@ const CREATE_VIDEOGAMEPLATFORM_TABLE = `
 CREATE TABLE videogame_platform (
     videogame_id INTEGER NOT NULL,
     platform_id INTEGER NOT NULL,
+    year TEXT DEFAULT '9999',
     PRIMARY KEY (videogame_id, platform_id),
     FOREIGN KEY (videogame_id)
         REFERENCES videogame
             ON DELETE CASCADE,
     FOREIGN KEY (platform_id)
         REFERENCES platform
-            ON DELETE CASCADE
-        
-)
+            ON DELETE CASCADE)
 `
 
 const CREATE_TABLE_STATEMENTS = [

@@ -13,8 +13,8 @@ function main(){
         .then(() => configs.DB_MANAGER.createDatabase())
         .then(db => initTables(db))
         .then(db => processCSV(db))
-        // .then(db => showTables(db))
-        .then(db => showSingleTable(db, 'genre'))
+        //.then(db => showTables(db))
+        .then(db => showSingleTable(db, 'platform'))
         .then(() => {
             console.log('All done!')
             configs.DB_MANAGER.closeDatabase();
@@ -104,12 +104,6 @@ function doubleUpQuotes(arr){
     })
 }
 
-// const raw = lineSplitter("16502,Irotoridori no Sekai: World's End Re-Birth,PSV,2015,Action,HuneX,0,0,0.01,0,0.01");
-// console.log(raw)
-// console.log(doubleUpQuotes(raw));
-
-// console.log(lineSplitter('945,"He,y Y,ou, P,ik,ach,u!",N64,1998,"He,y Y,ou, P,ik,ach,u!",Nintendo,0.83,0.06,0.93,0,1.83'))
-
 function processData(raw){
     return {
         genre: {
@@ -123,7 +117,6 @@ function processData(raw){
         videogame: {
             tableName: 'videogame',
             videogame_name: raw.name,
-            year: raw.year,
             publisher: raw.publisher,
             genre: raw.genre
         },
@@ -134,6 +127,7 @@ function processData(raw){
         sale: {
             tableName: 'videogame_sale',
             videogame: raw.name,
+            year: raw.year,
             platform_name: raw.platform,
             naSales: raw.naSales,
             euSales: raw.euSales,
@@ -143,7 +137,8 @@ function processData(raw){
         videogamePlatform: {
             tableName: 'videogame_platform',
             videogame: raw.name,
-            platform: raw.platform
+            platform: raw.platform,
+            year: raw.year === 'N/A' ? null: raw.year
         }
     }
 }
@@ -156,25 +151,43 @@ function generateQueries(o){
         platformInsert : `INSERT OR IGNORE INTO ${o.platform.tableName} (platform_name)
         VALUES ('${o.platform.platform_name}')`,
 
-        videogameInsert : `INSERT INTO ${o.videogame.tableName}
-        (videogame_name, year, publisher_id, genre_id)
-        VALUES ('${o.videogame.videogame_name}', '${o.videogame.year}',
+        videogameInsert : `INSERT OR IGNORE INTO ${o.videogame.tableName}
+        (videogame_name, publisher_id, genre_id)
+        VALUES ('${o.videogame.videogame_name}',
             (SELECT publisher_id FROM publisher WHERE publisher_name ='${o.videogame.publisher}'),
             (SELECT genre_id FROM genre WHERE genre_name = '${o.videogame.genre}'))`,
 
         publisherInsert: `INSERT OR IGNORE INTO ${o.publisher.tableName} (publisher_name)
         VALUES ('${o.publisher.publisher_name}')`,
 
-        // TODO: fix this part!
         salesInsert: `INSERT INTO ${o.sale.tableName}
         (videogame_id, platform_id, na_sales, eu_sales, jp_sales, other_sales)
-        VALUES ((SELECT videogame_id FROM videogame WHERE videogame_name = '${o.sale.videogame}'),
-        (SELECT platform_id FROM platform WHERE )
-        ${o.sale.naSales},${o.sale.euSales},${o.sale.jpSales},${o.sale.otherSales})`,
+        VALUES (
+            (SELECT v.videogame_id 
+             FROM videogame v 
+                INNER JOIN videogame_platform vgp
+                    ON v.videogame_id = vgp.videogame_id
+                INNER JOIN platform p
+                    ON p.platform_id = vgp.platform_id
+             WHERE v.videogame_name = '${o.sale.videogame}' AND p.platform_name = '${o.sale.platform_name}' AND vgp.year = '${o.sale.year}'),
 
-        vgPlatformInsert: `INSERT INTO ${o.videogamePlatform.tableName}
-        (videogame_id, platform_id) VALUES ((SELECT videogame_id FROM videogame WHERE videogame_name = '${o.videogamePlatform.videogame}'),
-        (SELECT platform_id FROM platform WHERE platform_name = '${o.videogamePlatform.platform}'))`
+            (SELECT p.platform_id 
+            FROM platform p INNER JOIN videogame_platform vgp 
+                ON p.platform_id = vgp.platform_id
+            INNER JOIN videogame v
+                ON v.videogame_id = vgp.videogame_id
+            WHERE v.videogame_name = '${o.sale.videogame}' AND p.platform_name = '${o.sale.platform_name}' AND vgp.year = '${o.sale.year}'),
+            ${o.sale.naSales},
+            ${o.sale.euSales},
+            ${o.sale.jpSales},
+            ${o.sale.otherSales})`,
+
+        vgPlatformInsert: `INSERT INTO ${o.videogamePlatform.tableName} (videogame_id, platform_id, year) 
+                            VALUES (
+                                (SELECT videogame_id FROM videogame WHERE videogame_name = '${o.videogamePlatform.videogame}'),
+                                (SELECT platform_id FROM platform WHERE platform_name = '${o.videogamePlatform.platform}'), 
+                                ${o.videogamePlatform.year}
+                            )`
     }
 }
 
@@ -231,7 +244,7 @@ function showSingleTable(db, tableName){
 function insertData(db, q){
     if(!db) throw new Error('Database not created!')
     const sql = q.genreInsert  + ';\n' + q.platformInsert + ';\n' + q.publisherInsert 
-        + ';\n' + q.videogameInsert + ';\n' + q.salesInsert + ';\n' + q.vgPlatformInsert;
+        + ';\n' + q.videogameInsert + ';\n' + q.vgPlatformInsert + ';\n' + q.salesInsert ;
     db.exec(sql, (err) => {
         // return err
         if(err) { 
