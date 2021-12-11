@@ -55,7 +55,6 @@ CSVLineTokenizer.prototype.tokenize = function(line, targetCount){
     return arr;
 }
 
-
 /**
  * Sanitizes single quotes to prevent SQL errors
  * 
