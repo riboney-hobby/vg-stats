@@ -1,4 +1,5 @@
 */res/*.db
+*/res/*.db-journal
 
 # Logs
 logs
