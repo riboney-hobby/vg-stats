@@ -64,6 +64,8 @@ function checkFileExists(filePath){
     return fs.access(filePath, fs.F_OK);
 }
 
+//checkFileExists('/home/ribba/prog/vg-stats/backend/res/test2.csv').then(res => console.log(res));
+
 module.exports = {
     getProjectRootDir,
     checkFileExists,

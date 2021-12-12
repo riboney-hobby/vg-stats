@@ -1,5 +1,3 @@
-const configs = require('../../configs/sqlite-seeder-configs')
-
 function SqliteUtils (){}
 
 SqliteUtils.prototype.initTables = function(db, {tableNames, createStmts}){
@@ -58,23 +56,27 @@ SqliteUtils.prototype.showAllTables = function(db, tableNames){
     return new Promise((resolve, reject) => {
         if(!db) reject(new Error('Database not created!'));
         if(!tableNames) reject(new Error('Cannot show table, table name not provided!'));
-
-        const perRowCB = (err, row) => {
-            if(err) reject(err);
-            else console.log('Table: ', row)
-        }
     
-        const afterAllRowsCB = (err, numOfRows) => {
-            if(err) reject(err);
-            else {
-                console.log('Total number of rows retrieved: ', numOfRows);
-                resolve();
-            }
-        }
+        const afterAllRowsCB = 
 
         db.serialize(function(){
-            for(let i = 0; i<configs.TABLE_NAMES.length; i++){
-                db.each(`SELECT * FROM ${tableNames[i]}`, [], perRowCB, afterAllRowsCB)
+            for(let i = 0; i<tableNames.length; i++){
+                let results = [];
+                db.each(`SELECT * FROM ${tableNames[i]}`, [], 
+                /*per row callback in query*/ (err, row) => {
+                    if(err) reject(err);
+                    else {
+                        results.push(row);
+                    }
+                }, 
+                /*after all rows in query*/(err, numOfRows) => {
+                    if(err) reject(err);
+                    else {
+                        console.log(`${tableNames[i]} tables:\n`, results);
+                        results = [];
+                        resolve();
+                    }
+                })
             }
         })
     })
@@ -99,42 +101,32 @@ SqliteUtils.prototype.showSingleTable = function(db, tableName){
 
 SqliteUtils.prototype.insertMany = function(db, queries){
     return new Promise( (resolve, reject) => {
-        const startsWithInsert = queries.subString(0,5).toUpperCase().startsWith('INSERT');
+        const afterTabs = 5;
+        const endOfWord = 11;
+        const startsWithInsert = queries.substring(afterTabs, endOfWord).toUpperCase().startsWith('INSERT');
         
         if(!db) reject(new Error('Database not created!'));
-        if(!queries || !startsWithInsert) reject(new Error('!Insert queries not provided!'));
+        if(!queries || !startsWithInsert) reject(new Error('Insert queries not provided!'));
 
     
-        db.exec(queries, (err) => {
-            if(err) { 
-                console.log('The error: ', queries, '\n', err);
+        db.serialize(function(){
+            try{
+                db.exec(queries, (err) => {
+                    if(err) { 
+                        console.log('The error: ', queries, '\n', err);
+                        throw err;
+                    } else {
+                        console.log('Process pending...')
+                        resolve();
+                    }
+                });
+            } catch(err){
                 reject(err);
-            } else {
-                //console.log('Process pending...')
-                resolve();
             }
-        });
+        })
     })
 }
 
 module.exports = new SqliteUtils();
 
-// function main(){
-//     const d = new SqliteUtils();
-//     configs.DB_MANAGER.createDatabase()
-//         .then(db => d.initTables(db, {tableNames: configs.TABLE_NAMES, createStatements: configs.CREATE_TABLE_STATEMENTS}))
-//         .then(db => d.showCreateTableInfo(db))
-//         .then(db => processCSV(db))
-//         .then(db=>showTables(db))
-//         .then(db => d.showSingleTable(db, 'genre'))
-//         .then(() => {
-//             configs.DB_MANAGER.closeDatabase();
-//         })
-//         .catch(err => { 
-//             console.error(err, '\nExiting program!');
-//             // src: https://stackoverflow.com/a/37592669
-//             process.exitCode = 1;
-//         })
-// }
 
-// main();

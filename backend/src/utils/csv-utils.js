@@ -23,10 +23,14 @@ CSVLineTokenizer.prototype.tokenize = function(line, targetCount){
  * @returns {Boolean} - True if count is correct, False if more than expected, Error if less than expected
  */
  CSVLineTokenizer.prototype._verifyCount = function(actual, expected){
-    if(actual < expected) 
-        throw new Error('Invalid data! Number of values provided less the specified amount!');
-        
-    return actual == expected ? true:false;
+    const isNewLineOrEmpty = actual <= 1;
+
+    if(isNewLineOrEmpty) 
+        throw new Error('Empty line encountered!');
+    else if(actual < expected) 
+        throw new Error(`Invalid data! Number of values 
+                        provided less the specified amount!`);
+    else return actual == expected ? true:false;
 }
 
 // Example use case: 
