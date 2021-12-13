@@ -60,14 +60,12 @@ describe('Tests DAO methods', () => {
         const sql = `UPDATE test SET name = 'Jill' WHERE id = 2`;
 
         return dbDAO.run(sql)
-            //.then(res => expect({id: res.id, changes: res.changes}).toEqual({id: 2, changes: 1}))
             .then(res => dbDAO.retrieveByID('test', 2))
             .then(row => expect(row).toEqual({ id: 2, rank: 2, name: 'Jill' }))
     })
 
     test('tests deleteByID()', () => {
         return dbDAO.deleteByID('test', 2)
-            // .then(res => expect({id: res.id, changes: res.changes}).toEqual({id: 2, changes: 1}))
             .then(res => dbDAO.retrieveAll('test'))
             .then(rows => expect(rows).toEqual([{ id: 1, rank: 1, name: 'Bob' }]))
     })

@@ -13,7 +13,7 @@ function SqliteManager(configs) {
             mode: [sqlite3.OPEN_CREATE, sqlite3.OPEN_READWRITE],
             callback: function(err) { 
                 if (err) throw err;
-                console.log('Database connecting...');
+                else console.log('Database connecting...');
             }
         }
     }
@@ -49,10 +49,21 @@ function SqliteManager(configs) {
     })().getDbManager();
 }
 
+//sqlite3.Database: new (filename: string, mode?: number, callback?: (err: Error) => void) => Database
+
+/**
+ * @typedef sqlite3.Database
+ * @type {object}
+ * @property {string} - filepath to the sqlite3 database file to open/create; use `:memory:` for in-memory database
+ * @property {number} - OPEN_READONLY, OPEN_READWRITE, OPEN_CREATE (default: OPEN_READWRITE | OPEN_CREATE)
+ * @property {callback=} - optional callback to run while opening database and to catch errors
+ * 
+*/
+
 /**
  * Connects to SQLite and provides Sqlite object
  * 
- * @returns {Object} Database object representing SQLite with name Database
+ * @returns {sqlite3.Database} Database object representing SQLite with name Database
  */
 SqliteManager.prototype.createDatabase = function() {
     return new Promise( (resolve, reject) => {
@@ -96,7 +107,9 @@ SqliteManager.prototype.closeDatabase = function(){
 module.exports = SqliteManager;
 
 
-// Represents the Non-promises, synchronous version of the code
+/**********
+* ARCHIVE: unpromisfied version of the code
+**********/
 
 // SqliteManager.prototype.createDatabase = function() {
 

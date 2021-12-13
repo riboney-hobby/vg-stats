@@ -288,10 +288,13 @@ function generateInserts(csv){
 
     // order of statements matter
     // statements formed according CSV_SCHEMA
-    return genreInsert(csv)+platformInsert(csv)
-    +publisherInsert(csv)+gameInsert(csv)
-    +gamePlatformInsert(csv)+gamePublisherInsert(csv)
-    +salesInsert(csv);
+    return genreInsert(csv)
+            +platformInsert(csv)
+            +publisherInsert(csv)
+            +gameInsert(csv)
+            +gamePlatformInsert(csv)
+            +gamePublisherInsert(csv)
+            +salesInsert(csv);
 }
 
 module.exports = {
